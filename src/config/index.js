@@ -1,27 +1,60 @@
 require('dotenv').config();
+const roles = require('./roles');
+const channels = require('./channels');
 
 module.exports = {
+  // Server IDs & Constants
+  roles,
+  channels,
+
+  // Discord Bot Configurations
   discord: {
     token: process.env.DISCORD_TOKEN,
-    // Cabin channel where !todo commands and interactions are restricted
-    cabinChannelId: process.env.CABIN_CHANNEL_ID || process.env.BONDS_CABIN_CHANNEL_ID || '1560281139921297540',
-    // Optional channel to announce bot status when booting
-    channelId: process.env.DISCORD_CHANNEL_ID,
-    // Role IDs allowed to run admin commands (!todo working, !todo done, !todo reject, !todo delete)
-    // Supports comma-separated IDs in env or defaults to Administrator / specific roles
-    adminRoleIds: (process.env.TODO_ADMIN_ROLE_IDS || process.env.COMMANDER_ROLE_ID || '1558597413806284826,1448029016844931143')
-      .split(',')
-      .map(id => id.trim())
-      .filter(Boolean),
+    // Restrict !todo commands to Cabin / Headquarters channel
+    cabinChannelId: channels.CABIN,
+    // Staff/Admin roles allowed to execute admin commands (!todo working, !todo done, !todo reject, !todo delete)
+    adminRoleIds: roles.STAFF_ROLES,
     // Custom checkmark emoji ID or fallback unicode
-    successEmoji: process.env.TODO_SUCCESS_EMOJI || '✅',
+    successEmoji: '✅',
   },
+
+  // Database Configurations (Secrets in .env)
   supabase: {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY,
   },
-  gemini: {
-    apiKey: process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_ONE,
-    model: process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
+
+  // AI Providers & API Keys (Secrets in .env)
+  aiProviders: {
+    groq: {
+      keys: [
+        process.env.GROQ_API_KEY_ONE,
+        process.env.GROQ_API_KEY_TWO,
+        process.env.GROQ_API_KEY,
+      ].filter(Boolean),
+      endpoint: process.env.GROQ_ENDPOINT || 'https://api.groq.com/openai/v1/chat/completions',
+    },
+    gemini: {
+      keys: [
+        process.env.GEMINI_API_KEY,
+        process.env.GEMINI_API_KEY_ONE,
+      ].filter(Boolean),
+      endpoint: process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions',
+    }
+  },
+
+  // =========================================================================
+  // Feature-Specific AI Routing Config
+  // -------------------------------------------------------------------------
+  // Change provider or model here to switch between models for any feature.
+  // Supported providers: 'groq' | 'gemini'
+  // =========================================================================
+  features: {
+    todo: {
+      provider: 'groq',
+      model: 'openai/gpt-oss-120b',
+      temperature: 0.1,
+      maxTokens: 300
+    }
   }
 };

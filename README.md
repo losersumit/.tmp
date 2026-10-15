@@ -12,7 +12,7 @@ A modular Discord bot built with `discord.js` v14 and Supabase PostgreSQL to man
 │   └── schema.sql              # Supabase PostgreSQL schema for the todo system
 ├── src/
 │   ├── config/
-│   │   └── index.js            # Central environment & bot configurations
+│   │   └── index.js            # Central environment & AI provider/model configurations
 │   ├── database/
 │   │   └── supabase.js         # Supabase client singleton
 │   ├── events/
@@ -22,9 +22,10 @@ A modular Discord bot built with `discord.js` v14 and Supabase PostgreSQL to man
 │   ├── features/
 │   │   └── todoCommands.js     # Core todo logic, embeds, views & permissions
 │   └── utils/
-│       ├── aiUtils.js          # Gemini AI title generation utility
+│       ├── aiUtils.js          # Universal AI provider/model router & utilities
 │       └── discordUtils.js     # CDN URL & attachment resolver
 ├── .env                        # Local credentials & IDs (never commit to git)
+├── AGENTS.md                   # Developer & Agent architecture guidelines
 ├── index.js                    # Main bot entrypoint
 ├── package.json                # Project dependencies and npm scripts
 └── README.md
