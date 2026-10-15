@@ -1,34 +1,40 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const config = require('./src/config');
+const readyEvent = require('./src/events/ready');
+const messageCreateEvent = require('./src/events/messageCreate');
+const interactionCreateEvent = require('./src/events/interactionCreate');
 
-const token = process.env.DISCORD_TOKEN;
-const channelId = process.env.DISCORD_CHANNEL_ID;
-
-if (!token) {
-	throw new Error('Set DISCORD_TOKEN before starting.');
+if (!config.discord.token) {
+  throw new Error('Set DISCORD_TOKEN before starting.');
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// Build intents based on developer portal configuration
+// NOTE: "MessageContent" is a Privileged Gateway Intent.
+// If you see "Used disallowed intents", ensure "Message Content Intent" is toggled ON
+// in Discord Developer Portal -> Your App -> Bot -> Privileged Gateway Intents.
+const intents = [
+  GatewayIntentBits.Guilds,
+  GatewayIntentBits.GuildMessages,
+  GatewayIntentBits.GuildMessageReactions
+];
 
-client.once('ready', async () => {
-	console.log(`Logged in as ${client.user.tag}! Bot is ready.`);
-	if (channelId) {
-		try {
-			const channel = await client.channels.fetch(channelId);
-			if (!channel || typeof channel.send !== 'function') {
-				throw new Error('Configured channel cannot receive messages.');
-			}
-			await channel.send('I am Alive');
-		} catch (error) {
-			console.error('Unable to send message:', error);
-		}
-	} else {
-		console.log('DISCORD_CHANNEL_ID is not set in .env; skipping announcement message.');
-	}
+if (process.env.DISCORD_ENABLE_MESSAGE_CONTENT === 'true' || process.env.DISCORD_ENABLE_MESSAGE_CONTENT === '1') {
+  intents.push(GatewayIntentBits.MessageContent);
+}
+
+const client = new Client({
+  intents,
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
+// Event registrations
+client.once(readyEvent.name, () => readyEvent.execute(client));
+client.on(messageCreateEvent.name, (message) => messageCreateEvent.execute(message, client));
+client.on(interactionCreateEvent.name, (interaction) => interactionCreateEvent.execute(interaction, client));
+
 client.on('error', (error) => console.error('Discord client error:', error));
-client.login(token).catch((error) => {
-	console.error('Discord login failed:', error);
-	process.exitCode = 1;
+
+client.login(config.discord.token).catch((error) => {
+  console.error('Discord login failed:', error);
+  process.exitCode = 1;
 });
