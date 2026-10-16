@@ -1,9 +1,44 @@
 const { Events, EmbedBuilder } = require('discord.js');
 const config = require('../config');
+const { getChatCompletionForFeature } = require('../utils/aiUtils');
 
 // Welcome settings for Truckers MP - eClub.
 const WELCOME_CHANNEL_ID = config.channels.TEXT.CHAT;
 const WELCOME_BANNER_URL = 'https://i.ibb.co/Gv1g9Vx7/tmp-banner.jpg';
+
+async function createPersonalizedWelcome(member) {
+  const displayName = member.displayName || member.user.globalName || member.user.username;
+  const username = member.user.username;
+
+  try {
+    const response = await getChatCompletionForFeature('welcome', [
+      {
+        role: 'system',
+        content: [
+          'Write a warm, concise, personalized Discord welcome for a new member of Truckers MP - eClub, a trucking community.',
+          'Use the supplied username and display name naturally, without making assumptions about their personality, identity, experience, or interests.',
+          'Do not include role mentions, user mentions, markdown headings, emojis, or claims about the person.',
+          'Return only 1-2 short sentences, maximum 45 words.'
+        ].join(' ')
+      },
+      {
+        role: 'user',
+        content: `Username: ${username}\nDisplay name: ${displayName}\nWrite their welcome message.`
+      }
+    ]);
+
+    const cleaned = response
+      .replace(/<@&?\d+>/g, '')
+      .replace(/@everyone|@here/gi, '')
+      .trim();
+
+    if (cleaned) return cleaned.slice(0, 900);
+  } catch (error) {
+    console.error('[Welcome] AI personalization failed; using fallback:', error.message);
+  }
+
+  return `We’re glad to have you with us. Meet fellow drivers, settle in, and get ready for the road ahead!`;
+}
 
 module.exports = {
   name: Events.GuildMemberAdd,
@@ -16,12 +51,14 @@ module.exports = {
         return;
       }
 
+      const personalizedWelcome = await createPersonalizedWelcome(member);
+
       const embed = new EmbedBuilder()
         .setColor(0x731d62)
         .setTitle('WELCOME TO TRUCKERS MP - eCLUB')
         .setDescription(
-          `Welcome aboard, **${member.user.username}**!\n\n` +
-          'We’re glad to have you with us. Get comfortable, meet fellow drivers, and enjoy the journey.\n\n' +
+          `Welcome aboard, **${member.displayName || member.user.username}**!\n\n` +
+          `${personalizedWelcome}\n\n` +
           `**Start here:** <#${config.channels.TEXT.INFO}>\n` +
           '**Explore the community, learn how Truckers MP works, and get rolling!**'
         )
@@ -34,7 +71,7 @@ module.exports = {
         .setFooter({ text: 'Truckers MP - eClub • Community & Convoy' })
         .setTimestamp();
 
-      // Ping only the new member; do not mention any role.
+      // Ping only the new member; no role mentions.
       await channel.send({
         content: `Welcome <@${member.id}> to Truckers MP - eClub!`,
         embeds: [embed],
