@@ -3,6 +3,7 @@ const config = require('./src/config');
 const readyEvent = require('./src/events/ready');
 const messageCreateEvent = require('./src/events/messageCreate');
 const interactionCreateEvent = require('./src/events/interactionCreate');
+const guildMemberAddEvent = require('./src/events/guildMemberAdd');
 
 if (!config.discord.token) {
   throw new Error('Set DISCORD_TOKEN before starting.');
@@ -14,6 +15,7 @@ if (!config.discord.token) {
 // in Discord Developer Portal -> Your App -> Bot -> Privileged Gateway Intents.
 const intents = [
   GatewayIntentBits.Guilds,
+  GatewayIntentBits.GuildMembers,
   GatewayIntentBits.GuildMessages,
   GatewayIntentBits.GuildMessageReactions
 ];
@@ -31,6 +33,7 @@ const client = new Client({
 client.once(readyEvent.name, () => readyEvent.execute(client));
 client.on(messageCreateEvent.name, (message) => messageCreateEvent.execute(message, client));
 client.on(interactionCreateEvent.name, (interaction) => interactionCreateEvent.execute(interaction, client));
+client.on(guildMemberAddEvent.name, (member) => guildMemberAddEvent.execute(member));
 
 client.on('error', (error) => console.error('Discord client error:', error));
 
