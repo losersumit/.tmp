@@ -2,6 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const { ChannelType } = require('discord.js');
 
+const EXCLUDED_CHANNEL_CATEGORY_IDS = new Set([
+  '1558597415622418490'
+]);
+
 /**
  * Normalizes Discord channel or role name into a clean, human-readable JS identifier.
  * e.g., "┇💬┇ᴄʜᴀᴛ" -> "CHAT", "[🌐] COMMUNITY" -> "COMMUNITY"
@@ -36,7 +40,8 @@ function toKeyName(str) {
 }
 
 /**
- * Fetches all roles and channels from the primary guild and updates roles.js and channels.js
+ * Fetches all roles and channels from the primary guild and updates roles.js and channels.js.
+ * Channels inside excluded categories are omitted from the generated channel lists.
  * @param {import('discord.js').Client} client
  */
 async function syncServerConfig(client) {
@@ -100,6 +105,11 @@ ${Object.entries(rolesMap).map(([k, id]) => `  ${JSON.stringify(k)}: ${JSON.stri
     const voiceChannelsMap = {};
 
     for (const c of channelsList) {
+      // Omit every channel whose parent category is excluded.
+      if (c.parentId && EXCLUDED_CHANNEL_CATEGORY_IDS.has(c.parentId)) {
+        continue;
+      }
+
       const key = toKeyName(c.name);
 
       if (c.type === ChannelType.GuildCategory) {
@@ -166,7 +176,7 @@ ${Object.entries(voiceChannelsMap).map(([k, id]) => `    ${JSON.stringify(k)}: $
     fs.writeFileSync(path.join(configDir, 'roles.js'), rolesContent, 'utf8');
     fs.writeFileSync(path.join(configDir, 'channels.js'), channelsContent, 'utf8');
 
-    console.log(`[Sync] Successfully updated roles.js (${rolesList.length} roles) and channels.js (${channelsList.length} channels).`);
+    console.log(`[Sync] Successfully updated roles.js (${rolesList.length} roles) and channels.js (${channelsList.length} channels; excluded category ${Array.from(EXCLUDED_CHANNEL_CATEGORY_IDS).join(', ')}).`);
   } catch (error) {
     console.error('[Sync] Error syncing roles and channels:', error);
   }
