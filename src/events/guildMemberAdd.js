@@ -3,7 +3,6 @@ const config = require('../config');
 
 // Welcome settings for Truckers MP - eClub.
 const WELCOME_CHANNEL_ID = config.channels.TEXT.INFO;
-const WELCOME_ROLE_ID = config.roles.SNOW_USER;
 const WELCOME_BANNER_URL = 'https://i.ibb.co/Gv1g9Vx7/tmp-banner.jpg';
 
 module.exports = {
@@ -35,13 +34,12 @@ module.exports = {
         .setFooter({ text: 'Truckers MP - eClub • Community & Convoy' })
         .setTimestamp();
 
-      // Keep the new-member and community-role mentions outside the embed.
+      // Ping only the new member; do not mention any role.
       await channel.send({
-        content: `<@&${WELCOME_ROLE_ID}> Welcome <@${member.id}> to Truckers MP - eClub!`,
+        content: `Welcome <@${member.id}> to Truckers MP - eClub!`,
         embeds: [embed],
         allowedMentions: {
-          users: [member.id],
-          roles: [WELCOME_ROLE_ID]
+          users: [member.id]
         }
       });
 
