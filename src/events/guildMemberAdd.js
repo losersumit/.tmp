@@ -1,36 +1,33 @@
-const { Events, EmbedBuilder } = require('discord.js');
+const { Events } = require('discord.js');
 const config = require('../config');
 const { getChatCompletionForFeature } = require('../utils/aiUtils');
 
 // Welcome settings for Truckers MP - eClub.
 const WELCOME_CHANNEL_ID = config.channels.TEXT.CHAT;
 
-function fallbackWelcome(displayName) {
-  return `Welcome to Truckers MP - eClub, ${displayName}! We're glad to have you here. Meet fellow drivers and get ready for the road ahead.`;
+function fallbackIntro(displayName) {
+  return `${displayName} just landed in the server.`;
 }
 
-async function createPersonalizedWelcome(member) {
+async function createWelcomeIntro(member) {
   const displayName = member.displayName || member.user.globalName || member.user.username;
-  const username = member.user.username;
 
   try {
     const response = await getChatCompletionForFeature('welcome', [
       {
         role: 'system',
         content: [
-          'You write welcome copy for a trucking Discord community.',
-          'Your entire response must be the final welcome message addressed to the new member, not instructions, analysis, a plan, or an explanation.',
-          'Write exactly 1 or 2 friendly sentences, no more than 35 words.',
-          'Use the display name naturally. You may mention Truckers MP - eClub and meeting fellow drivers.',
-          'Do not repeat the username as metadata. Do not mention prompts, rules, word counts, or how you generated the message.',
-          'No headings, quotation marks, emojis, markdown, or Discord mentions.',
-          'Example of valid output: Welcome to Truckers MP - eClub, Alex! Glad to have you here — get comfortable and enjoy the road ahead.',
-          'Return only the final welcome message.'
+          'You write short, fun, creative arrival announcements for new Discord members in a trucking community.',
+          'Output exactly ONE sentence using the member\'s display name.',
+          'Make it fresh and playful — vary the style every time.',
+          'Examples: "BonD just landed in the server." / "BonD brought us all pizza." / "BonD accidentally showed up." / "BonD joined the family." / "BonD rolled in out of nowhere." / "BonD took a wrong turn and ended up here."',
+          'Do NOT use emojis, quotes, markdown, @mentions, or the word "community".',
+          'Return ONLY the single sentence, nothing else.',
         ].join(' ')
       },
       {
         role: 'user',
-        content: `Write the final welcome message for this member. Display name: ${displayName}. Username: ${username}.`
+        content: `Write the arrival announcement for: ${displayName}`
       }
     ]);
 
@@ -40,20 +37,19 @@ async function createPersonalizedWelcome(member) {
       .replace(/^["'`]+|["'`]+$/g, '')
       .trim();
 
-    // Reject leaked prompt/analysis or unusually long output rather than showing it to members.
-    const looksLikePromptLeak = /we need to produce|we have username|we can say|write their welcome|use the username|should not use|return only|maximum \d+ words|we need to write|system prompt/i.test(cleaned);
-    const sentenceCount = (cleaned.match(/[.!?](?:\s|$)/g) || []).length;
+    // Must be a single short sentence, no prompt leakage.
+    const looksLikePromptLeak = /you write|output exactly|make it fresh|examples?:|return only|display name|system prompt/i.test(cleaned);
 
-    if (cleaned && !looksLikePromptLeak && cleaned.length <= 300 && sentenceCount <= 3) {
+    if (cleaned && !looksLikePromptLeak && cleaned.length <= 120) {
       return cleaned;
     }
 
-    console.warn('[Welcome] AI returned invalid welcome copy; using fallback.');
+    console.warn('[Welcome] AI returned invalid intro; using fallback.');
   } catch (error) {
-    console.error('[Welcome] AI personalization failed; using fallback:', error.message);
+    console.error('[Welcome] AI intro failed; using fallback:', error.message);
   }
 
-  return fallbackWelcome(displayName);
+  return fallbackIntro(displayName);
 }
 
 module.exports = {
@@ -67,18 +63,11 @@ module.exports = {
         return;
       }
 
-      const personalizedWelcome = await createPersonalizedWelcome(member);
-
-      const embed = new EmbedBuilder()
-        .setColor(0x731d62)
-        .setDescription(`Welcome to Truckers MP - eClub, <@${member.id}>!\n${personalizedWelcome}`)
-        .setThumbnail(member.displayAvatarURL({ extension: 'png', size: 64 }));
+      const intro = await createWelcomeIntro(member);
 
       await channel.send({
-        embeds: [embed],
-        allowedMentions: {
-          users: [member.id]
-        }
+        content: `<@${member.id}> ${intro} Say Hi to them!`,
+        allowedMentions: { users: [member.id] }
       });
 
       console.log(`[Welcome] Welcomed ${member.user.tag} (${member.id}) in #${channel.name}.`);
