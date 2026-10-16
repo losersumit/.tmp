@@ -2,7 +2,7 @@ const { Events, EmbedBuilder } = require('discord.js');
 const config = require('../config');
 
 // Welcome settings for Truckers MP - eClub.
-const WELCOME_CHANNEL_ID = config.channels.TEXT.INFO;
+const WELCOME_CHANNEL_ID = config.channels.TEXT.CHAT;
 const WELCOME_BANNER_URL = 'https://i.ibb.co/Gv1g9Vx7/tmp-banner.jpg';
 
 module.exports = {
