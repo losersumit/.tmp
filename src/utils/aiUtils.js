@@ -51,12 +51,7 @@ async function getChatCompletionForFeature(featureName, messages, overrideOption
       );
 
       const choice = response.data?.choices?.[0]?.message;
-      let text = choice?.content?.trim() || '';
-
-      // If text content was empty but reasoning is present (e.g. some deepseek/oss reasoning models)
-      if (!text && choice?.reasoning) {
-        text = choice.reasoning.trim();
-      }
+      let text = choice?.content?.replace(/<think>[\s\S]*?<\/think>/gi, '').trim() || '';
 
       return text;
     } catch (err) {

@@ -57,10 +57,10 @@ module.exports = {
       maxTokens: 300
     },
     welcome: {
-      provider: 'groq',
-      model: 'openai/gpt-oss-120b',
+      provider: process.env.WELCOME_AI_PROVIDER || 'groq',
+      model: process.env.WELCOME_AI_MODEL || 'openai/gpt-oss-20b',
       temperature: 0.7,
-      maxTokens: 140
+      maxTokens: 500
     }
   }
 };

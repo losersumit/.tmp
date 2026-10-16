@@ -4,7 +4,6 @@ const { getChatCompletionForFeature } = require('../utils/aiUtils');
 
 // Welcome settings for Truckers MP - eClub.
 const WELCOME_CHANNEL_ID = config.channels.TEXT.CHAT;
-const WELCOME_BANNER_URL = 'https://i.ibb.co/Gv1g9Vx7/tmp-banner.jpg';
 
 function fallbackWelcome(displayName) {
   return `Welcome to Truckers MP - eClub, ${displayName}! We're glad to have you here. Meet fellow drivers and get ready for the road ahead.`;
@@ -72,25 +71,10 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0x731d62)
-        .setTitle('WELCOME TO TRUCKERS MP - eCLUB')
-        .setDescription(
-          `Welcome aboard, **${member.displayName || member.user.username}**!\n\n` +
-          `${personalizedWelcome}\n\n` +
-          `**Start here:** <#${config.channels.TEXT.INFO}>\n` +
-          '**Explore the community, learn how Truckers MP works, and get rolling!**'
-        )
-        .setThumbnail(member.displayAvatarURL({ extension: 'png', size: 256 }))
-        .setImage(WELCOME_BANNER_URL)
-        .addFields(
-          { name: 'YOUR JOURNEY STARTS HERE', value: 'Read the server guide, get to know the community, and make yourself at home.', inline: false },
-          { name: 'DRIVE SAFE. ENJOY THE RIDE.', value: 'Welcome to the eClub family.', inline: false }
-        )
-        .setFooter({ text: 'Truckers MP - eClub • Community & Convoy' })
-        .setTimestamp();
+        .setDescription(`Welcome to Truckers MP - eClub, <@${member.id}>!\n${personalizedWelcome}`)
+        .setThumbnail(member.displayAvatarURL({ extension: 'png', size: 64 }));
 
-      // Ping only the new member; no role mentions.
       await channel.send({
-        content: `Welcome <@${member.id}> to Truckers MP - eClub!`,
         embeds: [embed],
         allowedMentions: {
           users: [member.id]
