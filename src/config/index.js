@@ -55,6 +55,12 @@ module.exports = {
       model: 'openai/gpt-oss-120b',
       temperature: 0.1,
       maxTokens: 300
+    },
+    welcome: {
+      provider: (process.env.WELCOME_AI_PROVIDER || 'groq').toLowerCase(),
+      model: process.env.WELCOME_AI_MODEL || 'llama-3.3-70b-versatile',
+      temperature: 0.7,
+      maxTokens: 140
     }
   }
 };
