@@ -122,7 +122,8 @@ module.exports = {
       provider: process.env.MODERATION_MEDIA_AI_PROVIDER || 'gemini',
       model: process.env.MODERATION_MEDIA_AI_MODEL || 'gemini-3.1-flash-lite',
       temperature: 0.1,
-      maxTokens: 500
+      maxTokens: 500,
+      timeout: 90000  // 90s — multi-image payloads need extra time on Gemini
     }
   },
 

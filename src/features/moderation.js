@@ -214,9 +214,10 @@ async function moderateGifVideo(attachmentUrl, ext = 'gif') {
       }))
     ];
 
+    const featureConf = config.features.moderationMedia || {};
     const responseText = await getChatCompletionForFeature('moderationMedia', [
       { role: 'user', content }
-    ]);
+    ], { timeout: featureConf.timeout || 90000 });
 
     const result = parseAndApplyStrictMode(responseText, 'gif/video');
     console.log(`[Moderation] GIF/video check — Flagged: ${result.isFlagged}${result.isFlagged ? ` | Reason: ${result.reason}` : ''}`);

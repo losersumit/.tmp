@@ -1,9 +1,9 @@
 /**
  * GIF & Video Frame Extractor for AI Moderation
  *
- * Extracts 5 evenly-spaced frames from a GIF or video file using FFmpeg.
- * Frames are sampled at: t_i = ((i + 0.5) * D) / 5  for i = 0..4
- * This spreads samples across the full duration, not just the first 5 seconds.
+ * Extracts 3 evenly-spaced frames from a GIF or video file using FFmpeg.
+ * Frames are sampled at: t_i = ((i + 0.5) * D) / 3  for i = 0..2
+ * This spreads samples across the full duration, not just the first few seconds.
  *
  * Also handles resolving Tenor/embed URLs to real CDN binary URLs.
  */
@@ -17,9 +17,6 @@ const axios = require('axios');
 const ffmpegPath = require('ffmpeg-static');
 
 const execFileAsync = promisify(execFile);
-
-// Resolve ffprobe from system PATH (ships with FFmpeg installations)
-const ffprobePath = process.env.FFPROBE_PATH || 'ffprobe';
 
 /**
  * Resolve a Discord attachment or embed URL to an actual binary media CDN URL.
@@ -90,52 +87,61 @@ async function downloadToTempFile(url, ext = 'gif') {
 }
 
 /**
- * Get the duration of a media file in seconds using ffprobe.
- * Falls back to a default duration of 5s if ffprobe is unavailable.
+ * Get the duration of a media file in seconds using ffmpeg's probe mode.
+ * FFmpeg always writes stream/format info to stderr when given just -i.
+ * Falls back to 4s if parsing fails (shorter than 5s to avoid out-of-bounds frames).
  *
  * @param {string} filePath
  * @returns {Promise<number>}
  */
 async function getMediaDuration(filePath) {
   try {
-    const { stdout } = await execFileAsync(ffprobePath, [
-      '-v', 'error',
-      '-show_entries', 'format=duration',
-      '-of', 'default=noprint_wrappers=1:nokey=1',
-      filePath
-    ]);
-    const duration = Number(stdout.trim());
-    if (Number.isFinite(duration) && duration > 0) {
-      return duration;
+    // ffmpeg exits non-zero with just -i (no output file), but still writes info to stderr
+    const result = await execFileAsync(ffmpegPath, ['-v', 'error', '-i', filePath], {
+      timeout: 10000
+    }).catch(err => ({ stderr: err.stderr || '' }));
+
+    const stderr = result.stderr || '';
+    // Parse "Duration: HH:MM:SS.ms" from ffmpeg stderr
+    const match = stderr.match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
+    if (match) {
+      const duration = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3]);
+      if (Number.isFinite(duration) && duration > 0) {
+        return duration;
+      }
     }
-    console.warn(`[GifExtractor] ffprobe returned non-finite duration, defaulting to 5s.`);
-    return 5;
+    console.warn(`[GifExtractor] Could not parse duration from ffmpeg output, defaulting to 4s.`);
+    return 4;
   } catch (err) {
-    console.warn(`[GifExtractor] ffprobe failed (${err.message}), defaulting to 5s duration.`);
-    return 5;
+    console.warn(`[GifExtractor] ffmpeg probe failed (${err.message}), defaulting to 4s duration.`);
+    return 4;
   }
 }
 
 /**
- * Extract exactly 5 frames evenly spread across the media duration.
- * Sampling formula: t_i = ((i + 0.5) * D) / 5  for i = 0, 1, 2, 3, 4
+ * Extract exactly 3 frames evenly spread across the media duration.
+ * Sampling formula: t_i = ((i + 0.5) * D) / 3  for i = 0, 1, 2
+ * Timestamps are clamped to (duration - 0.1) to prevent out-of-bounds seeks.
+ * Frames are saved as JPEG at 256px wide (much smaller payload than PNG at 512px).
  *
  * @param {string} mediaPath - Path to the media file
- * @param {string} outputDir - Directory to save extracted PNG frames
- * @returns {Promise<string[]>} Array of 5 frame file paths
+ * @param {string} outputDir - Directory to save extracted JPEG frames
+ * @returns {Promise<string[]>} Array of up to 3 frame file paths
  */
-async function extractFiveFrames(mediaPath, outputDir) {
+async function extractFrames(mediaPath, outputDir) {
   await fs.mkdir(outputDir, { recursive: true });
 
   const duration = await getMediaDuration(mediaPath);
-  console.log(`[GifExtractor] Media duration: ${duration.toFixed(2)}s. Extracting 5 frames...`);
+  console.log(`[GifExtractor] Media duration: ${duration.toFixed(2)}s. Extracting 3 frames...`);
 
   const frames = [];
+  const FRAME_COUNT = 3;
 
-  for (let i = 0; i < 5; i++) {
-    // Sample the middle of each of 5 equal-duration segments
-    const timestamp = ((i + 0.5) * duration) / 5;
-    const outputPath = path.join(outputDir, `frame_${i + 1}.png`);
+  for (let i = 0; i < FRAME_COUNT; i++) {
+    // Sample the middle of each of 3 equal-duration segments, clamped to avoid EOF
+    const rawTimestamp = ((i + 0.5) * duration) / FRAME_COUNT;
+    const timestamp = Math.min(rawTimestamp, duration - 0.1);
+    const outputPath = path.join(outputDir, `frame_${i + 1}.jpg`);
 
     try {
       await execFileAsync(ffmpegPath, [
@@ -143,11 +149,12 @@ async function extractFiveFrames(mediaPath, outputDir) {
         '-ss', timestamp.toFixed(3),
         '-i', mediaPath,
         '-frames:v', '1',
-        '-vf', 'scale=512:-1',  // Resize to max 512px wide to keep payload small
+        '-vf', 'scale=256:-1',  // 256px wide JPEG — ~10-40KB each vs ~200KB+ for 512px PNG
+        '-q:v', '5',            // JPEG quality (2=best, 31=worst; 5 is a good balance)
         outputPath
       ]);
       frames.push(outputPath);
-      console.log(`[GifExtractor] Extracted frame ${i + 1}/5 at t=${timestamp.toFixed(2)}s`);
+      console.log(`[GifExtractor] Extracted frame ${i + 1}/${FRAME_COUNT} at t=${timestamp.toFixed(2)}s`);
     } catch (err) {
       console.warn(`[GifExtractor] Failed to extract frame ${i + 1} at t=${timestamp.toFixed(2)}s: ${err.message}`);
     }
@@ -157,7 +164,7 @@ async function extractFiveFrames(mediaPath, outputDir) {
 }
 
 /**
- * Read a list of frame PNG files and return them as base64 data URIs.
+ * Read a list of frame JPEG files and return them as base64 data URIs.
  *
  * @param {string[]} framePaths
  * @returns {Promise<string[]>} Base64 data URIs
@@ -167,7 +174,7 @@ async function framesToBase64(framePaths) {
   for (const framePath of framePaths) {
     try {
       const data = await fs.readFile(framePath);
-      uris.push(`data:image/png;base64,${data.toString('base64')}`);
+      uris.push(`data:image/jpeg;base64,${data.toString('base64')}`);
     } catch (err) {
       console.warn(`[GifExtractor] Could not read frame file ${framePath}: ${err.message}`);
     }
@@ -191,12 +198,12 @@ async function cleanup(framePaths, mediaPath, frameDir) {
 }
 
 /**
- * Full pipeline: resolve URL → download → extract 5 frames → return base64 URIs.
+ * Full pipeline: resolve URL → download → extract 3 JPEG frames → return base64 URIs.
  * Cleans up all temp files after extraction.
  *
  * @param {string} attachmentUrl - The Discord attachment or Tenor URL
  * @param {'gif'|'mp4'|'webm'|'mov'} ext - File extension hint
- * @returns {Promise<string[]>} Up to 5 base64 PNG data URIs for moderation
+ * @returns {Promise<string[]>} Up to 3 base64 JPEG data URIs for moderation
  */
 async function extractFramesFromMedia(attachmentUrl, ext = 'gif') {
   const resolvedUrl = await resolveMediaUrl(attachmentUrl);
@@ -207,7 +214,7 @@ async function extractFramesFromMedia(attachmentUrl, ext = 'gif') {
 
   try {
     mediaPath = await downloadToTempFile(resolvedUrl, ext);
-    const framePaths = await extractFiveFrames(mediaPath, frameDir);
+    const framePaths = await extractFrames(mediaPath, frameDir);
 
     if (framePaths.length === 0) {
       console.warn(`[GifExtractor] No frames extracted from: ${resolvedUrl}`);
@@ -225,5 +232,6 @@ async function extractFramesFromMedia(attachmentUrl, ext = 'gif') {
     return [];
   }
 }
+
 
 module.exports = { extractFramesFromMedia, resolveMediaUrl };
