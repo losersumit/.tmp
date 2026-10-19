@@ -2,7 +2,7 @@
  * Auto-generated Discord Server Channels Mapping
  * Updated automatically on bot startup.
  * Guild: Truckers MP- eClub (1558597413357363263)
- * Timestamp: 2026-10-18T13:51:45.199Z
+ * Timestamp: 2026-10-19T11:05:54.072Z
  */
 
 module.exports = {
@@ -24,6 +24,7 @@ module.exports = {
     "UVS_BACKEND": "1560207328190664724",
     "UVS_WORKING": "1560241776932028476",
     "TRUCKERS_MP": "1560352413146284052",
+    "LOGS": "1561695589987516576",
   },
 
   // Text & Announcement Channels
@@ -51,7 +52,6 @@ module.exports = {
     "ROLES": "1560217622610575390",
     "CHANNELS": "1560218140011667607",
     "TSBR": "1560218321893462106",
-    "ETS_2": "1560218354898436277",
     "TSU": "1560218403203973210",
     "DRIVERS_LB": "1560241845055782972",
     "UVS_SYSTEM": "1560241873589899375",
@@ -61,8 +61,10 @@ module.exports = {
     "NO_MIC": "1560293174906200065",
     "MAJOR_VTCS": "1560666123647848448",
     "MINOR_VTCS": "1560669560103772241",
-    "DYNO_DOCUMENTATION": "1560700103407177779",
+    "DOCUMENTATION": "1560700103407177779",
     "QUESTIONS": "1561370965940772935",
+    "BOT_CMDS": "1561696640606277642",
+    "AI_MOD_LOGS": "1561696838321569852",
   },
 
   // Voice & Stage Channels

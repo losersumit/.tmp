@@ -150,3 +150,41 @@ BEGIN
     LIMIT match_count;
 END;
 $$;
+
+-- =========================================================
+-- Supabase Schema for AI Moderation System
+-- Run this in Supabase Dashboard → SQL Editor → Run
+-- =========================================================
+
+-- mod_warnings: one row per infraction issued by the AI moderator
+CREATE TABLE IF NOT EXISTS public.mod_warnings (
+    id          UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id     TEXT        NOT NULL,                -- Discord user snowflake ID
+    reason      TEXT,                               -- AI-generated reason
+    severity    TEXT        CHECK (severity IN ('low', 'medium', 'high', 'none')),
+    moderator_id TEXT       DEFAULT 'AI',            -- 'AI' or a staff Discord ID
+    created_at  TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Fast per-user warning lookups (ordered most-recent-first)
+CREATE INDEX IF NOT EXISTS idx_mod_warnings_user_created
+    ON public.mod_warnings (user_id, created_at DESC);
+
+-- Enable Row Level Security
+ALTER TABLE public.mod_warnings ENABLE ROW LEVEL SECURITY;
+
+-- Service role (bot backend) has full access
+CREATE POLICY "Allow service role full access to mod_warnings"
+ON public.mod_warnings
+FOR ALL
+TO service_role
+USING (true)
+WITH CHECK (true);
+
+-- Staff/authenticated users can read warnings (e.g. dashboard)
+CREATE POLICY "Allow authenticated read access to mod_warnings"
+ON public.mod_warnings
+FOR SELECT
+TO authenticated
+USING (true);
+

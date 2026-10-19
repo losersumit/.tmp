@@ -98,6 +98,93 @@ module.exports = {
       model: process.env.RAG_SUMMARY_AI_MODEL || 'gemini-3.1-flash-lite',
       temperature: 0.2,
       maxTokens: 300
+    },
+
+    // ── AI Moderation Features ──────────────────────────────────────────────
+    // Chat/text moderation → Groq (fast, text-only)
+    moderationText: {
+      provider: process.env.MODERATION_TEXT_AI_PROVIDER || 'groq',
+      model: process.env.MODERATION_TEXT_AI_MODEL || 'openai/gpt-oss-20b',
+      temperature: 0.1,
+      maxTokens: 500
+    },
+    // Image moderation → Gemini (vision-capable)
+    moderationImage: {
+      provider: process.env.MODERATION_IMAGE_AI_PROVIDER || 'gemini',
+      model: process.env.MODERATION_IMAGE_AI_MODEL || 'gemini-3.1-flash-lite',
+      temperature: 0.1,
+      maxTokens: 500
+    },
+    // GIF / video frame moderation → Gemini (multi-image vision)
+    moderationMedia: {
+      provider: process.env.MODERATION_MEDIA_AI_PROVIDER || 'gemini',
+      model: process.env.MODERATION_MEDIA_AI_MODEL || 'gemini-3.1-flash-lite',
+      temperature: 0.1,
+      maxTokens: 500
+    }
+  },
+
+  // =========================================================================
+  // AI Moderation Settings
+  // =========================================================================
+  moderation: {
+    // Flag borderline content even when AI is not fully certain
+    strictMode: false,
+
+    // Minimum character count — very short messages are skipped
+    minMessageLength: 2,
+
+    // Sensitivity multiplier shown to the AI (0–1, displayed as x10 score)
+    sensitivity: 0.1,
+
+    // Channels where moderation is completely skipped (IDs from channels.js)
+    ignoredChannels: [
+      channels.TEXT.BOT_COMMANDS,
+      channels.TEXT.STAFFS_ONLY,
+    ],
+
+    // Roles that bypass moderation entirely — empty means everyone is moderated
+    ignoredRoles: [],
+
+    // Warning count → automated action thresholds
+    warnings: {
+      actionThresholds: {
+        timeout1h:  3,   // 3 warnings  → 1-hour timeout
+        timeout24h: 5,   // 5 warnings  → 24-hour timeout
+        kick:       7,   // 7 warnings  → kick
+        ban:        10   // 10 warnings → ban
+      }
+    },
+
+    // Permissions: Role authorized to clear warnings (!cw)
+    partnerRoleId: roles.PARTNER,
+
+    // Mod-log channel lookup — checked in order until one is found
+    logging: {
+      // Primary designated logging channel ID from channels config
+      logChannelId: channels.TEXT?.AI_MOD_LOGS,
+      modLogChannels: ['ai-mod-logs', 'aimodlogs', 'mod-logs', 'modlogs', 'mod-log', 'modlog', 'bot-logs', 'admin-logs'],
+      consoleLog: true,
+      includeMessageContent: true,
+      censorMessageContent: false,
+      maxContentLength: 1024
+    },
+
+    // Embed color scheme and notification behaviour
+    appearance: {
+      colors: {
+        error:          '#FF0000',
+        warning:        '#FF9900',
+        info:           '#0099FF',
+        success:        '#00CC66',
+        lowSeverity:    '#FFCC00',
+        mediumSeverity: '#FF6600',
+        highSeverity:   '#FF0000'
+      },
+      showUserAvatarsInLogs: true,
+      // If DMs are closed, post a brief channel notice instead
+      sendChannelNotificationsWhenDMFails: true,
+      channelNotificationTimeout: 5000 // ms before the channel notice is auto-deleted
     }
   }
 };
