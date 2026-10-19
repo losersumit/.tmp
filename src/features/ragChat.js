@@ -580,6 +580,25 @@ async function handleRagChat(message, client) {
 
   // Explicit mention or reply to bot
   if (mentioned || repliedToBot) {
+    const chatbotChannelId = config.discord?.chatbotChannelId;
+
+    // If chatbot is restricted to a specific channel and triggered outside it
+    if (chatbotChannelId && message.channel.id !== chatbotChannelId) {
+      try {
+        await message.reply(`Let's go to the proper channel! 👉 <#${chatbotChannelId}>`);
+
+        const properChannel = message.guild?.channels.cache.get(chatbotChannelId)
+          || await client.channels.fetch(chatbotChannelId).catch(() => null);
+
+        if (properChannel && properChannel.isTextBased()) {
+          await properChannel.send(`Hey <@${message.author.id}>, what did you want to talk about?`);
+        }
+      } catch (err) {
+        console.error('[RAG] Error redirecting to chatbot channel:', err.message);
+      }
+      return;
+    }
+
     const q = content.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim() || 'Hey!';
     await askWithContext(message, client, q);
   }

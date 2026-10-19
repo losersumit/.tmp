@@ -12,6 +12,8 @@ module.exports = {
     token: process.env.DISCORD_TOKEN,
     // Restrict !todo commands to Cabin / Headquarters channel
     cabinChannelId: channels.CABIN,
+    // Designated Chatbot conversation channel
+    chatbotChannelId: channels.QUESTIONS || channels.TEXT?.QUESTIONS || channels.TEXT?.OUESTIONS,
     // Staff/Admin roles allowed to execute admin commands (!todo working, !todo done, !todo reject, !todo delete)
     adminRoleIds: roles.STAFF_ROLES,
     // Custom checkmark emoji ID or fallback unicode
@@ -141,6 +143,11 @@ module.exports = {
     ignoredChannels: [
       channels.TEXT.BOT_COMMANDS,
       channels.TEXT.STAFFS_ONLY,
+    ],
+
+    // Channels restricted to images only (text messages without images are deleted)
+    imageOnlyChannels: [
+      channels.TEXT.FLEET_SHOWCASE,
     ],
 
     // Roles that bypass moderation entirely — empty means everyone is moderated

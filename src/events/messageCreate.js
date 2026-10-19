@@ -7,12 +7,36 @@ const { addWarning } = require('../systems/moderationStorage');
 const { logMessageModeration, takeModAction, getActionDescription } = require('../utils/moderationUtils');
 const config = require('../config');
 
-const { ignoredChannels, ignoredRoles, appearance } = config.moderation;
+const { ignoredChannels, ignoredRoles, imageOnlyChannels, appearance } = config.moderation;
 
 module.exports = {
   name: Events.MessageCreate,
   async execute(message, client) {
     if (message.author.bot) return;
+
+    // ── Image-Only Channel Enforcement ─────────────────────────────────────────
+    // Channels like FLEET_SHOWCASE only allow images/attachments. Plain text is deleted.
+    const isImageOnlyChannel = Array.isArray(imageOnlyChannels) && imageOnlyChannels.includes(message.channel.id);
+    if (isImageOnlyChannel) {
+      const hasImageAttachment = message.attachments.some(a => {
+        const type = a.contentType || '';
+        return type.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(a.url);
+      });
+
+      const mediaUrlRegex = /https?:\/\/(?:www\.)?(?:tenor\.com\/view\/[^\s]+|media\.tenor\.com\/[^\s]+|giphy\.com\/gifs\/[^\s]+|media\.giphy\.com\/[^\s]+|i\.giphy\.com\/[^\s]+|[^\s]+\.(?:gif|png|jpe?g|webp))(?:\?[^\s]*)?/i;
+      const hasMediaUrl = mediaUrlRegex.test(message.content || '');
+
+      if (!hasImageAttachment && !hasMediaUrl) {
+        await message.delete().catch(() => {});
+        try {
+          const warningMsg = await message.channel.send(
+            `⚠️ ${message.author}, this channel is reserved for **images only**. Text-only messages are not allowed.`
+          );
+          setTimeout(() => warningMsg.delete().catch(() => {}), appearance?.channelNotificationTimeout || 5000);
+        } catch {}
+        return;
+      }
+    }
 
     // ── Prefix Commands ──────────────────────────────────────────────────────
     if (message.content.startsWith('!')) {

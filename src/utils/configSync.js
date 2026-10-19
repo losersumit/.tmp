@@ -139,6 +139,7 @@ ${Object.entries(rolesMap).map(([k, id]) => `  ${JSON.stringify(k)}: ${JSON.stri
     // Provide friendly aliases
     const cabinId = textChannelsMap['HEADQUARTERS'] || textChannelsMap['CABIN'] || '1560281139921297540';
     const chatId = textChannelsMap['CHAT'] || '1558597414972039175';
+    const questionsId = textChannelsMap['QUESTIONS'] || textChannelsMap['OUESTIONS'] || '1561370965940772935';
 
     const channelsContent = `/**
  * Auto-generated Discord Server Channels Mapping
@@ -154,6 +155,7 @@ module.exports = {
   CABIN: ${JSON.stringify(cabinId)},
   HEADQUARTERS: ${JSON.stringify(cabinId)},
   CHAT: ${JSON.stringify(chatId)},
+  QUESTIONS: ${JSON.stringify(questionsId)},
 
   // Categories
   CATEGORIES: {
