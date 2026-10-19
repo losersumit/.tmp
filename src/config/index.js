@@ -78,13 +78,13 @@ module.exports = {
     },
     welcome: {
       provider: process.env.WELCOME_AI_PROVIDER || 'groq',
-      model: process.env.WELCOME_AI_MODEL || 'openai/gpt-oss-20b',
+      model: process.env.WELCOME_AI_MODEL || 'openai/gpt-oss-120b',
       temperature: 0.7,
       maxTokens: 500
     },
     chat: {
-      provider: process.env.CHAT_AI_PROVIDER || 'gemini',
-      model: process.env.CHAT_AI_MODEL || 'gemini-3.1-flash-lite',
+      provider: process.env.CHAT_AI_PROVIDER || 'groq',
+      model: process.env.CHAT_AI_MODEL || 'openai/gpt-oss-120b',
       visionModel: process.env.CHAT_VISION_MODEL || 'gemini-3.1-flash-lite',
       temperature: Number(process.env.CHAT_TEMPERATURE || 0.6),
       maxTokens: Number(process.env.CHAT_MAX_TOKENS || 512)
@@ -96,8 +96,8 @@ module.exports = {
       maxTokens: 30
     },
     ragSummary: {
-      provider: process.env.RAG_SUMMARY_AI_PROVIDER || 'gemini',
-      model: process.env.RAG_SUMMARY_AI_MODEL || 'gemini-3.1-flash-lite',
+      provider: process.env.RAG_SUMMARY_AI_PROVIDER || 'groq',
+      model: process.env.RAG_SUMMARY_AI_MODEL || 'openai/gpt-oss-120b',
       temperature: 0.2,
       maxTokens: 300
     },
