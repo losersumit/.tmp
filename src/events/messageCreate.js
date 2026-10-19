@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const { handleTodoCommand } = require('../features/todoCommands');
+const { handleRagChat } = require('../features/ragChat');
 
 module.exports = {
   name: Events.MessageCreate,
@@ -14,7 +15,11 @@ module.exports = {
       if (commandName === 'todo') {
         console.log(`[Command] !todo executed by ${message.author.tag} in channel ${message.channelId}`);
         await handleTodoCommand(message, args, client);
+        return;
       }
     }
+
+    // Chatbot and RAG Message Handler
+    await handleRagChat(message, client);
   }
 };

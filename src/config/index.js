@@ -24,20 +24,38 @@ module.exports = {
     key: process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY,
   },
 
+  // Embeddings API (Nomic)
+  nomic: {
+    apiKey: process.env.NOMIC_API_KEY,
+    endpoint: process.env.NOMIC_ENDPOINT || 'https://api-atlas.nomic.ai/v1/embedding/text',
+    model: process.env.NOMIC_MODEL || 'nomic-embed-text-v1.5',
+    dimension: 768,
+  },
+
   // AI Providers & API Keys (Secrets in .env)
   aiProviders: {
     groq: {
       keys: [
         process.env.GROQ_API_KEY_ONE,
         process.env.GROQ_API_KEY_TWO,
+        process.env.GROQ_API_KEY_THREE,
+        process.env.GROQ_API_KEY_FOUR,
+        process.env.GROQ_API_KEY_FIVE,
         process.env.GROQ_API_KEY,
       ].filter(Boolean),
       endpoint: process.env.GROQ_ENDPOINT || 'https://api.groq.com/openai/v1/chat/completions',
     },
     gemini: {
       keys: [
-        process.env.GEMINI_API_KEY,
         process.env.GEMINI_API_KEY_ONE,
+        process.env.GEMINI_API_KEY_TWO,
+        process.env.GEMINI_API_KEY_THREE,
+        process.env.GEMINI_API_KEY_FOUR,
+        process.env.GEMINI_API_KEY_FIVE,
+        process.env.GEMINI_API_KEY_SIX,
+        process.env.GEMINI_API_KEY_SEVEN,
+        process.env.GEMINI_API_KEY_EIGHT,
+        process.env.GEMINI_API_KEY,
       ].filter(Boolean),
       endpoint: process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions',
     }
@@ -51,8 +69,8 @@ module.exports = {
   // =========================================================================
   features: {
     todo: {
-      provider: 'groq',
-      model: 'openai/gpt-oss-120b',
+      provider: process.env.TODO_AI_PROVIDER || 'groq',
+      model: process.env.TODO_AI_MODEL || 'openai/gpt-oss-120b',
       temperature: 0.1,
       maxTokens: 300
     },
@@ -61,6 +79,25 @@ module.exports = {
       model: process.env.WELCOME_AI_MODEL || 'openai/gpt-oss-20b',
       temperature: 0.7,
       maxTokens: 500
+    },
+    chat: {
+      provider: process.env.CHAT_AI_PROVIDER || 'gemini',
+      model: process.env.CHAT_AI_MODEL || 'gemini-3.1-flash-lite',
+      visionModel: process.env.CHAT_VISION_MODEL || 'gemini-3.1-flash-lite',
+      temperature: Number(process.env.CHAT_TEMPERATURE || 0.6),
+      maxTokens: Number(process.env.CHAT_MAX_TOKENS || 512)
+    },
+    imageReaction: {
+      provider: process.env.IMAGE_REACTION_AI_PROVIDER || 'gemini',
+      model: process.env.IMAGE_REACTION_AI_MODEL || 'gemini-3.1-flash-lite',
+      temperature: 0.1,
+      maxTokens: 30
+    },
+    ragSummary: {
+      provider: process.env.RAG_SUMMARY_AI_PROVIDER || 'gemini',
+      model: process.env.RAG_SUMMARY_AI_MODEL || 'gemini-3.1-flash-lite',
+      temperature: 0.2,
+      maxTokens: 300
     }
   }
 };

@@ -55,6 +55,17 @@ async function createWelcomeIntro(member) {
 module.exports = {
   name: Events.GuildMemberAdd,
   async execute(member) {
+    // 1. Auto-assign the SNOW_USER role from config.roles
+    if (config.roles?.SNOW_USER) {
+      try {
+        await member.roles.add(config.roles.SNOW_USER);
+        console.log(`[AutoRole] Assigned SNOW_USER role (${config.roles.SNOW_USER}) to ${member.user.tag} (${member.id}).`);
+      } catch (roleError) {
+        console.error(`[AutoRole] Failed to assign SNOW_USER role to ${member.user.tag}:`, roleError.message);
+      }
+    }
+
+    // 2. Send welcome announcement
     try {
       const channel = await member.guild.channels.fetch(WELCOME_CHANNEL_ID).catch(() => null);
 
