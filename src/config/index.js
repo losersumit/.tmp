@@ -144,6 +144,8 @@ module.exports = {
     ignoredChannels: [
       channels.TEXT?.BOT_COMMANDS || channels.TEXT?.BOT_CMDS,
       channels.TEXT?.STAFFS_ONLY,
+      channels.TEXT?.MAJOR_VTCS,
+      channels.TEXT?.MINOR_VTCS, 
     ],
 
     // Categories where moderation is completely skipped (all channels within these categories)
