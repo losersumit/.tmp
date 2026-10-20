@@ -2,7 +2,7 @@
  * Auto-generated Discord Server Roles Mapping
  * Updated automatically on bot startup.
  * Guild: Truckers MP- eClub (1558597413357363263)
- * Timestamp: 2026-10-19T13:09:50.272Z
+ * Timestamp: 2026-10-20T10:21:00.837Z
  */
 
 module.exports = {

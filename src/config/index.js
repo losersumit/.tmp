@@ -148,7 +148,7 @@ module.exports = {
 
     // Categories where moderation is completely skipped (all channels within these categories)
     ignoredCategories: [
-      channels.CATEGORIES?.TRUCKERS_MP || '1560352413146284052',
+      channels.CATEGORIES?.VTCS || '1560352413146284052',
     ],
 
     // Channels restricted to images only (text messages without images are deleted)
