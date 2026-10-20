@@ -467,7 +467,7 @@ async function askWithContext(message, client, question) {
         userContent.push({ type: 'image_url', image_url: { url } });
       }
 
-      answer = await getChatCompletionForFeature('chat', [
+      answer = await getChatCompletionForFeature('chatVision', [
         { role: 'user', content: userContent }
       ]);
     } else {
@@ -571,12 +571,7 @@ async function handleRagChat(message, client) {
   const repliedToBot = await isReplyToBot(message, client);
   const image = getImageAttachment(message);
 
-  // Auto-react with server emojis to images
-  if (image) {
-    reactToImage(message, image).catch(err => {
-      console.error('[RAG] Error in reactToImage:', err.message);
-    });
-  }
+
 
   // Explicit mention or reply to bot
   if (mentioned || repliedToBot) {

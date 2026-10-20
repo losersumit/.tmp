@@ -48,7 +48,7 @@ function releaseKey(keyObj, waiters) {
 
 /**
  * Automatically converts remote HTTP image URLs in vision messages to base64 data URIs
- * for compatibility with OpenAI-compatible endpoints like Gemini.
+ * for compatibility with OpenAI-compatible endpoints like Gemini and OpenRouter.
  */
 async function resolveImageUrls(messages) {
   if (!Array.isArray(messages)) return messages;
@@ -158,11 +158,11 @@ function raceBatchRequests(batchPromises, abortController) {
 }
 
 /**
- * Executes requests in parallel batches (e.g. 4 keys at once for Gemini).
+ * Executes requests in parallel batches (e.g. 4 keys at once).
  * Races the keys within the batch; first non-error wins and aborts the rest.
- * If all 4 fail, falls back to the next batch of 4 keys.
+ * Returns { result } if successful.
  */
-async function executeBatchedCompletion({
+async function executeBatchOfKeys({
   provider,
   providerConfig,
   model,
@@ -170,77 +170,164 @@ async function executeBatchedCompletion({
   temperature,
   maxTokens,
   timeoutMs,
-  batchSize = 4
+  batchKeys,
+  waiters
 }) {
-  const keys = providerConfig.keys;
-  const { keyPool, waiters } = getKeyPool(provider, keys);
-  const triedIndices = new Set();
-  const totalKeys = keyPool.length;
+  const abortController = new AbortController();
+  const batchPromises = batchKeys.map((keyObj) => ({
+    keyObj,
+    promise: (async () => {
+      try {
+        console.log(`[AIClient] Provider "${provider}" dispatching request with key index ${keyObj.index} (batch of ${batchKeys.length})...`);
+        const text = await sendRequestToKey(
+          providerConfig,
+          model,
+          processedMessages,
+          temperature,
+          maxTokens,
+          keyObj,
+          timeoutMs,
+          abortController.signal
+        );
+        return text;
+      } catch (err) {
+        if (!axios.isCancel(err) && err?.name !== 'CanceledError' && err?.name !== 'AbortError') {
+          const status = err?.response?.status;
+          const errMsg = err?.response?.data?.error?.message || err.message;
+          console.warn(`[AIClient] Provider "${provider}" key index ${keyObj.index} failed (Status: ${status}): ${errMsg}`);
+        }
+        throw err;
+      }
+    })()
+  }));
+
+  try {
+    const { result, winnerKeyObj } = await raceBatchRequests(batchPromises, abortController);
+    console.log(`[AIClient] Provider "${provider}" key index ${winnerKeyObj.index} completed first successfully!`);
+    return result;
+  } finally {
+    batchKeys.forEach(k => releaseKey(k, waiters));
+  }
+}
+
+/**
+ * Dispatches a request using a 3-stage fallback strategy for vision tasks:
+ * Stage 1: First 4 Gemini keys (sent concurrently in parallel, first to succeed wins).
+ * Stage 2: Second 4 Gemini keys (sent concurrently in parallel, first to succeed wins).
+ * Stage 3: OpenRouter API key using Minimax vision model (minimax/minimax-m3.1-flash:free).
+ */
+async function executeThreeStageVisionFallback({
+  model,
+  processedMessages,
+  temperature,
+  maxTokens,
+  timeoutMs
+}) {
+  const geminiConfig = config.aiProviders.gemini;
+  const geminiKeys = geminiConfig?.keys || [];
+  const { keyPool: geminiKeyPool, waiters: geminiWaiters } = getKeyPool('gemini', geminiKeys);
+  const triedGeminiIndices = new Set();
   let lastError = null;
 
-  while (triedIndices.size < totalKeys) {
-    // Acquire up to batchSize free keys
-    const currentBatchKeys = [];
-    const keysRemaining = totalKeys - triedIndices.size;
-    const countToAcquire = Math.min(batchSize, keysRemaining);
+  // ── Stage 1: First 4 Gemini keys ───────────────────────────────────────────
+  console.log('[AIClient] [Stage 1/3] Attempting first 4 Gemini keys in parallel...');
+  const stage1Keys = [];
+  const count1 = Math.min(4, geminiKeyPool.length);
+  for (let i = 0; i < count1; i++) {
+    const keyObj = await acquireFreeKey('gemini', geminiKeyPool, geminiWaiters, triedGeminiIndices);
+    triedGeminiIndices.add(keyObj.index);
+    stage1Keys.push(keyObj);
+  }
 
-    for (let i = 0; i < countToAcquire; i++) {
-      const keyObj = await acquireFreeKey(provider, keyPool, waiters, triedIndices);
-      triedIndices.add(keyObj.index);
-      currentBatchKeys.push(keyObj);
+  try {
+    const res = await executeBatchOfKeys({
+      provider: 'gemini',
+      providerConfig: geminiConfig,
+      model,
+      processedMessages,
+      temperature,
+      maxTokens,
+      timeoutMs,
+      batchKeys: stage1Keys,
+      waiters: geminiWaiters
+    });
+    return res;
+  } catch (err) {
+    lastError = err;
+    console.warn('[AIClient] Stage 1 (first 4 Gemini keys) all failed.');
+  }
+
+  // ── Stage 2: Second 4 Gemini keys ──────────────────────────────────────────
+  if (geminiKeyPool.length > triedGeminiIndices.size) {
+    console.log('[AIClient] [Stage 2/3] Attempting second 4 Gemini keys in parallel...');
+    const stage2Keys = [];
+    const count2 = Math.min(4, geminiKeyPool.length - triedGeminiIndices.size);
+    for (let i = 0; i < count2; i++) {
+      const keyObj = await acquireFreeKey('gemini', geminiKeyPool, geminiWaiters, triedGeminiIndices);
+      triedGeminiIndices.add(keyObj.index);
+      stage2Keys.push(keyObj);
     }
 
-    const abortController = new AbortController();
-    const batchPromises = currentBatchKeys.map((keyObj) => ({
-      keyObj,
-      promise: (async () => {
-        try {
-          console.log(`[AIClient] Provider "${provider}" dispatching request with key index ${keyObj.index} (batch of ${currentBatchKeys.length})...`);
-          const text = await sendRequestToKey(
-            providerConfig,
-            model,
-            processedMessages,
-            temperature,
-            maxTokens,
-            keyObj,
-            timeoutMs,
-            abortController.signal
-          );
-          return text;
-        } catch (err) {
-          if (!axios.isCancel(err) && err?.name !== 'CanceledError' && err?.name !== 'AbortError') {
-            const status = err?.response?.status;
-            const errMsg = err?.response?.data?.error?.message || err.message;
-            console.warn(`[AIClient] Provider "${provider}" key index ${keyObj.index} failed (Status: ${status}): ${errMsg}`);
-          }
-          throw err;
-        }
-      })()
-    }));
-
     try {
-      const { result, winnerKeyObj } = await raceBatchRequests(batchPromises, abortController);
-      console.log(`[AIClient] Provider "${provider}" key index ${winnerKeyObj.index} completed first successfully!`);
-
-      // Release all keys in the batch back to the pool
-      currentBatchKeys.forEach(k => releaseKey(k, waiters));
-      return result;
-    } catch (batchErr) {
-      // All keys in this batch failed
-      currentBatchKeys.forEach(k => releaseKey(k, waiters));
-      lastError = batchErr;
-      console.warn(`[AIClient] Provider "${provider}" batch of ${currentBatchKeys.length} keys failed. Trying next batch...`);
+      const res = await executeBatchOfKeys({
+        provider: 'gemini',
+        providerConfig: geminiConfig,
+        model,
+        processedMessages,
+        temperature,
+        maxTokens,
+        timeoutMs,
+        batchKeys: stage2Keys,
+        waiters: geminiWaiters
+      });
+      return res;
+    } catch (err) {
+      lastError = err;
+      console.warn('[AIClient] Stage 2 (second 4 Gemini keys) all failed.');
     }
   }
 
-  throw lastError || new Error(`All keys failed for AI provider "${provider}".`);
+  // ── Stage 3: OpenRouter API key ─────────────────────────────────────────────
+  const openrouterConfig = config.aiProviders.openrouter;
+  const openrouterKey = openrouterConfig?.keys?.[0];
+  const openrouterModel = openrouterConfig?.defaultModel || 'minimax/minimax-m3.1-flash:free';
+
+  if (openrouterConfig && openrouterKey) {
+    console.log(`[AIClient] [Stage 3/3] Falling back to OpenRouter using model "${openrouterModel}"...`);
+    try {
+      const text = await sendRequestToKey(
+        openrouterConfig,
+        openrouterModel,
+        processedMessages,
+        temperature,
+        maxTokens,
+        { key: openrouterKey, index: 0 },
+        timeoutMs
+      );
+      console.log('[AIClient] Stage 3 (OpenRouter) succeeded!');
+      return text;
+    } catch (err) {
+      lastError = err;
+      const status = err?.response?.status;
+      const errMsg = err?.response?.data?.error?.message || err.message;
+      console.error(`[AIClient] Stage 3 (OpenRouter) failed (Status: ${status}): ${errMsg}`);
+    }
+  } else {
+    console.warn('[AIClient] Stage 3 skipped: OpenRouter API key not configured.');
+  }
+
+  throw lastError || new Error('All 3 stages of vision fallback failed.');
 }
 
 /**
  * Universal AI chat completion router.
  * Dispatches requests to the provider configured for the specific feature (or custom options).
  * Supports automatic concurrency-aware key rotation and failover.
- * For Gemini, sends requests in parallel batches of 4 keys at once.
+ * Features involving vision (moderationImage, moderationMedia, imageReaction) or using gemini provider
+ * follow the 3-stage fallback:
+ *   Stage 1: First 4 Gemini keys (raced in parallel)
+ *   Stage 2: Second 4 Gemini keys (raced in parallel)
+ *   Stage 3: OpenRouter Minimax vision model
  *
  * @param {string} featureName - The name of the feature defined in config.features (e.g. 'todo')
  * @param {Array<{role: string, content: string|Array}>} messages - Chat completion messages
@@ -255,6 +342,56 @@ async function getChatCompletionForFeature(featureName, messages, overrideOption
   const maxTokens = overrideOptions.maxTokens ?? featureConfig.maxTokens ?? 512;
   const timeoutMs = overrideOptions.timeout || featureConfig.timeout || 30000;
 
+  // Pre-process any image URLs to base64
+  const processedMessages = await resolveImageUrls(messages);
+
+  // Check if this request contains vision attachments/images or is a vision moderation feature
+  const hasVisionPayload = processedMessages.some(m =>
+    Array.isArray(m.content) && m.content.some(c => c?.type === 'image_url')
+  );
+  const isVisionFeature = ['chatVision', 'moderationImage', 'moderationMedia'].includes(featureName);
+
+  // If attachments/images are included OR it's a vision feature, route through the 3-stage fallback:
+  // Stage 1: First 4 Gemini keys (parallel race)
+  // Stage 2: Second 4 Gemini keys (parallel race)
+  // Stage 3: OpenRouter Minimax vision model
+  if (hasVisionPayload || isVisionFeature) {
+    console.log(`[AIClient] Vision payload detected for feature "${featureName}". Routing to 3-stage vision pipeline (Gemini Batch 1 -> Gemini Batch 2 -> OpenRouter)...`);
+    return executeThreeStageVisionFallback({
+      model: featureConfig.visionModel || 'gemini-3.1-flash-lite',
+      processedMessages,
+      temperature,
+      maxTokens,
+      timeoutMs
+    });
+  }
+
+  // If Gemini text-only, run 4-key batching
+  if (provider === 'gemini') {
+    const geminiConfig = config.aiProviders.gemini;
+    const { keyPool, waiters } = getKeyPool('gemini', geminiConfig.keys);
+    const triedIndices = new Set();
+    const batchKeys = [];
+    const count = Math.min(4, keyPool.length);
+    for (let i = 0; i < count; i++) {
+      const keyObj = await acquireFreeKey('gemini', keyPool, waiters, triedIndices);
+      triedIndices.add(keyObj.index);
+      batchKeys.push(keyObj);
+    }
+    return executeBatchOfKeys({
+      provider: 'gemini',
+      providerConfig: geminiConfig,
+      model,
+      processedMessages,
+      temperature,
+      maxTokens,
+      timeoutMs,
+      batchKeys,
+      waiters
+    });
+  }
+
+  // Sequential failover for other providers (e.g. Groq)
   const providerConfig = config.aiProviders[provider];
   if (!providerConfig) {
     throw new Error(`Unsupported AI provider: "${provider}" requested by feature "${featureName}".`);
@@ -265,25 +402,6 @@ async function getChatCompletionForFeature(featureName, messages, overrideOption
     throw new Error(`No API keys found for AI provider: "${provider}". Please set environment variables.`);
   }
 
-  // Pre-process any image URLs to base64
-  const processedMessages = await resolveImageUrls(messages);
-
-  // If Gemini, dispatch in batches of 4 concurrent requests (or user-specified batchSize)
-  if (provider === 'gemini') {
-    const batchSize = overrideOptions.batchSize || 4;
-    return executeBatchedCompletion({
-      provider,
-      providerConfig,
-      model,
-      processedMessages,
-      temperature,
-      maxTokens,
-      timeoutMs,
-      batchSize
-    });
-  }
-
-  // Default sequential failover for other providers (e.g. Groq)
   const { keyPool, waiters } = getKeyPool(provider, keys);
   const triedIndices = new Set();
   const maxAttempts = keyPool.length;

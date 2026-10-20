@@ -56,9 +56,16 @@ module.exports = {
         process.env.GEMINI_API_KEY_SIX,
         process.env.GEMINI_API_KEY_SEVEN,
         process.env.GEMINI_API_KEY_EIGHT,
-        process.env.GEMINI_API_NINE,
+        process.env.GEMINI_API_KEY_NINE || process.env.GEMINI_API_NINE,
       ].filter(Boolean),
       endpoint: process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions',
+    },
+    openrouter: {
+      keys: [
+        process.env.OPENROUTER_API_KEY,
+      ].filter(Boolean),
+      endpoint: process.env.OPENROUTER_ENDPOINT || 'https://openrouter.ai/api/v1/chat/completions',
+      defaultModel: process.env.OPENROUTER_VISION_MODEL || 'minimax/minimax-m3.1-flash:free',
     }
   },
 
@@ -81,18 +88,19 @@ module.exports = {
       temperature: 0.7,
       maxTokens: 500
     },
+    // Text Chatbot → Groq (120B fast reasoning)
     chat: {
       provider: process.env.CHAT_AI_PROVIDER || 'groq',
       model: process.env.CHAT_AI_MODEL || 'openai/gpt-oss-120b',
-      visionModel: process.env.CHAT_VISION_MODEL || 'gemini-3.1-flash-lite',
       temperature: Number(process.env.CHAT_TEMPERATURE || 0.6),
       maxTokens: Number(process.env.CHAT_MAX_TOKENS || 512)
     },
-    imageReaction: {
-      provider: process.env.IMAGE_REACTION_AI_PROVIDER || 'gemini',
-      model: process.env.IMAGE_REACTION_AI_MODEL || 'gemini-3.1-flash-lite',
-      temperature: 0.1,
-      maxTokens: 30
+    // Vision Chatbot → 3-Stage Fallback (Gemini Batch 1 -> Gemini Batch 2 -> OpenRouter Minimax)
+    chatVision: {
+      provider: process.env.CHAT_VISION_AI_PROVIDER || 'gemini',
+      model: process.env.CHAT_VISION_MODEL || 'gemini-3.1-flash-lite',
+      temperature: Number(process.env.CHAT_VISION_TEMPERATURE || 0.6),
+      maxTokens: Number(process.env.CHAT_VISION_MAX_TOKENS || 512)
     },
     ragSummary: {
       provider: process.env.RAG_SUMMARY_AI_PROVIDER || 'groq',

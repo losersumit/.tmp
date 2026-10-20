@@ -2,7 +2,7 @@
  * Auto-generated Discord Server Roles Mapping
  * Updated automatically on bot startup.
  * Guild: Truckers MP- eClub (1558597413357363263)
- * Timestamp: 2026-10-20T16:19:20.598Z
+ * Timestamp: 2026-10-20T18:45:39.173Z
  */
 
 module.exports = {
@@ -24,12 +24,12 @@ module.exports = {
   "ETS2_NEWS": "1560306168100823120",
   "UVS": "1560199930386321421",
   "TICKETS_V2": "1560266782328094821",
-  "JOCKIE_MUSIC_2": "1560272499898323006",
   "TMP_ECLUB": "1560283572710146050",
   "TOE3_NM": "1561711945592344606",
   "RLE_T_NM": "1561712021622497311",
   "TSBR_NM": "1561712094183690260",
   "ETS_2_NM": "1561712140866560030",
+  "JOCKIE_MUSIC_2": "1562169267934330953",
   "EVERYONE": "1558597413357363263",
 
   // Groups of roles for permissions

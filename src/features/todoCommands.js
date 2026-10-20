@@ -126,7 +126,7 @@ async function handleTodoPagination(interaction) {
   if (allowedChannelId && interaction.channelId !== allowedChannelId) {
     return interaction.reply({
       content: `❌ This interaction is only allowed in <#${allowedChannelId}>.`,
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     });
   }
 
@@ -138,7 +138,7 @@ async function handleTodoPagination(interaction) {
     await interaction.update(response);
   } catch (err) {
     console.error('Error in handleTodoPagination:', err);
-    await interaction.reply({ content: '❌ Failed to paginate todo list.', ephemeral: true });
+    await interaction.reply({ content: '❌ Failed to paginate todo list.', flags: MessageFlags.Ephemeral });
   }
 }
 

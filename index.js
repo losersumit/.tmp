@@ -1,10 +1,11 @@
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
 const config = require('./src/config');
 const readyEvent = require('./src/events/ready');
 const messageCreateEvent = require('./src/events/messageCreate');
 const messageUpdateEvent = require('./src/events/messageUpdate');
 const interactionCreateEvent = require('./src/events/interactionCreate');
 const guildMemberAddEvent = require('./src/events/guildMemberAdd');
+const { commands } = require('./src/commands');
 
 if (!config.discord.token) {
   throw new Error('Set DISCORD_TOKEN before starting.');
@@ -26,6 +27,12 @@ const client = new Client({
   intents,
   partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
+
+// Slash commands collection
+client.commands = new Collection();
+for (const cmd of commands) {
+  client.commands.set(cmd.data.name, cmd);
+}
 
 // Event registrations
 client.once(readyEvent.name, () => readyEvent.execute(client));
