@@ -142,8 +142,13 @@ module.exports = {
 
     // Channels where moderation is completely skipped (IDs from channels.js)
     ignoredChannels: [
-      channels.TEXT.BOT_COMMANDS,
-      channels.TEXT.STAFFS_ONLY,
+      channels.TEXT?.BOT_COMMANDS || channels.TEXT?.BOT_CMDS,
+      channels.TEXT?.STAFFS_ONLY,
+    ],
+
+    // Categories where moderation is completely skipped (all channels within these categories)
+    ignoredCategories: [
+      channels.CATEGORIES?.TRUCKERS_MP || '1560352413146284052',
     ],
 
     // Channels restricted to images only (text messages without images are deleted)

@@ -18,7 +18,7 @@ const { addWarning } = require('../systems/moderationStorage');
 const { logMessageModeration, takeModAction, getActionDescription } = require('../utils/moderationUtils');
 const config = require('../config');
 
-const { ignoredChannels, ignoredRoles, appearance } = config.moderation;
+const { ignoredChannels, ignoredCategories, ignoredRoles, appearance } = config.moderation;
 
 // Track message IDs we've already moderated to avoid double-processing
 // (messageCreate already handles content URLs; this catches stragglers)
@@ -43,7 +43,7 @@ module.exports = {
     }
 
     // Apply same channel / role bypass rules
-    const isIgnoredChannel = ignoredChannels.includes(newMessage.channel?.id);
+    const isIgnoredChannel = (Array.isArray(ignoredChannels) && ignoredChannels.includes(newMessage.channel?.id)) || (Array.isArray(ignoredCategories) && newMessage.channel?.parentId && ignoredCategories.includes(newMessage.channel.parentId));
     const hasIgnoredRole = Boolean(
       newMessage.member &&
       newMessage.member.roles.cache.some(role => ignoredRoles.includes(role.id))

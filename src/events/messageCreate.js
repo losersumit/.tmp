@@ -7,7 +7,7 @@ const { addWarning } = require('../systems/moderationStorage');
 const { logMessageModeration, takeModAction, getActionDescription } = require('../utils/moderationUtils');
 const config = require('../config');
 
-const { ignoredChannels, ignoredRoles, imageOnlyChannels, appearance } = config.moderation;
+const { ignoredChannels, ignoredCategories, ignoredRoles, imageOnlyChannels, appearance } = config.moderation;
 
 module.exports = {
   name: Events.MessageCreate,
@@ -58,7 +58,7 @@ module.exports = {
 
     // ── Moderation Gate ──────────────────────────────────────────────────────
     // Skip moderation for ignored channels or privileged roles
-    const isIgnoredChannel = ignoredChannels.includes(message.channel.id);
+    const isIgnoredChannel = (Array.isArray(ignoredChannels) && ignoredChannels.includes(message.channel.id)) || (Array.isArray(ignoredCategories) && message.channel.parentId && ignoredCategories.includes(message.channel.parentId));
     const hasIgnoredRole = Boolean(
       message.member &&
       message.member.roles.cache.some(role => ignoredRoles.includes(role.id))
