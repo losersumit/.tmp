@@ -43,7 +43,6 @@ module.exports = {
         process.env.GROQ_API_KEY_THREE,
         process.env.GROQ_API_KEY_FOUR,
         process.env.GROQ_API_KEY_FIVE,
-        process.env.GROQ_API_KEY,
       ].filter(Boolean),
       endpoint: process.env.GROQ_ENDPOINT || 'https://api.groq.com/openai/v1/chat/completions',
     },
@@ -57,7 +56,7 @@ module.exports = {
         process.env.GEMINI_API_KEY_SIX,
         process.env.GEMINI_API_KEY_SEVEN,
         process.env.GEMINI_API_KEY_EIGHT,
-        process.env.GEMINI_API_KEY,
+        process.env.GEMINI_API_NINE,
       ].filter(Boolean),
       endpoint: process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions',
     }

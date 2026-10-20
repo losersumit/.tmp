@@ -5,6 +5,7 @@ const { handleRagChat } = require('../features/ragChat');
 const { moderateMessage, moderateImage, moderateGifVideo } = require('../features/moderation');
 const { addWarning } = require('../systems/moderationStorage');
 const { logMessageModeration, takeModAction, getActionDescription } = require('../utils/moderationUtils');
+const { isChannelOrCategoryIgnored } = require('../utils/discordUtils');
 const config = require('../config');
 
 const { ignoredChannels, ignoredCategories, ignoredRoles, imageOnlyChannels, appearance } = config.moderation;
@@ -58,7 +59,7 @@ module.exports = {
 
     // ── Moderation Gate ──────────────────────────────────────────────────────
     // Skip moderation for ignored channels or privileged roles
-    const isIgnoredChannel = (Array.isArray(ignoredChannels) && ignoredChannels.includes(message.channel.id)) || (Array.isArray(ignoredCategories) && message.channel.parentId && ignoredCategories.includes(message.channel.parentId));
+    const isIgnoredChannel = isChannelOrCategoryIgnored(message.channel, ignoredChannels, ignoredCategories);
     const hasIgnoredRole = Boolean(
       message.member &&
       message.member.roles.cache.some(role => ignoredRoles.includes(role.id))

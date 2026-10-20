@@ -16,6 +16,7 @@ const { Events, EmbedBuilder } = require('discord.js');
 const { moderateGifVideo } = require('../features/moderation');
 const { addWarning } = require('../systems/moderationStorage');
 const { logMessageModeration, takeModAction, getActionDescription } = require('../utils/moderationUtils');
+const { isChannelOrCategoryIgnored } = require('../utils/discordUtils');
 const config = require('../config');
 
 const { ignoredChannels, ignoredCategories, ignoredRoles, appearance } = config.moderation;
@@ -43,7 +44,7 @@ module.exports = {
     }
 
     // Apply same channel / role bypass rules
-    const isIgnoredChannel = (Array.isArray(ignoredChannels) && ignoredChannels.includes(newMessage.channel?.id)) || (Array.isArray(ignoredCategories) && newMessage.channel?.parentId && ignoredCategories.includes(newMessage.channel.parentId));
+    const isIgnoredChannel = isChannelOrCategoryIgnored(newMessage.channel, ignoredChannels, ignoredCategories);
     const hasIgnoredRole = Boolean(
       newMessage.member &&
       newMessage.member.roles.cache.some(role => ignoredRoles.includes(role.id))

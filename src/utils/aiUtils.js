@@ -92,9 +92,155 @@ async function resolveImageUrls(messages) {
 }
 
 /**
+ * Helper to dispatch a chat completion request to a specific key.
+ * Supports cancellation via AbortSignal.
+ */
+async function sendRequestToKey(providerConfig, model, processedMessages, temperature, maxTokens, keyObj, timeoutMs, signal) {
+  const response = await axios.post(
+    providerConfig.endpoint,
+    {
+      model,
+      messages: processedMessages,
+      temperature,
+      max_tokens: maxTokens
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${keyObj.key}`
+      },
+      timeout: timeoutMs,
+      signal
+    }
+  );
+
+  const choice = response.data?.choices?.[0]?.message;
+  return choice?.content?.replace(/<think>[\s\S]*?<\/think>/gi, '').trim() || '';
+}
+
+/**
+ * Race a batch of concurrent requests across multiple keys.
+ * Returns the first successful response and aborts the others.
+ * If all keys in the batch fail, rejects with the last error.
+ */
+function raceBatchRequests(batchPromises, abortController) {
+  return new Promise((resolve, reject) => {
+    let pending = batchPromises.length;
+    let lastError = null;
+    let resolved = false;
+
+    if (pending === 0) {
+      return reject(new Error('No requests in batch.'));
+    }
+
+    batchPromises.forEach(({ promise, keyObj }) => {
+      promise
+        .then((result) => {
+          if (!resolved) {
+            resolved = true;
+            // Abort remaining in-flight requests in this batch
+            abortController.abort();
+            resolve({ result, winnerKeyObj: keyObj });
+          }
+        })
+        .catch((err) => {
+          // Ignore AbortError caused by another key succeeding
+          if (!axios.isCancel(err) && err?.name !== 'CanceledError' && err?.name !== 'AbortError') {
+            lastError = err;
+          }
+          pending--;
+          if (pending === 0 && !resolved) {
+            reject(lastError || new Error('All requests in batch failed.'));
+          }
+        });
+    });
+  });
+}
+
+/**
+ * Executes requests in parallel batches (e.g. 4 keys at once for Gemini).
+ * Races the keys within the batch; first non-error wins and aborts the rest.
+ * If all 4 fail, falls back to the next batch of 4 keys.
+ */
+async function executeBatchedCompletion({
+  provider,
+  providerConfig,
+  model,
+  processedMessages,
+  temperature,
+  maxTokens,
+  timeoutMs,
+  batchSize = 4
+}) {
+  const keys = providerConfig.keys;
+  const { keyPool, waiters } = getKeyPool(provider, keys);
+  const triedIndices = new Set();
+  const totalKeys = keyPool.length;
+  let lastError = null;
+
+  while (triedIndices.size < totalKeys) {
+    // Acquire up to batchSize free keys
+    const currentBatchKeys = [];
+    const keysRemaining = totalKeys - triedIndices.size;
+    const countToAcquire = Math.min(batchSize, keysRemaining);
+
+    for (let i = 0; i < countToAcquire; i++) {
+      const keyObj = await acquireFreeKey(provider, keyPool, waiters, triedIndices);
+      triedIndices.add(keyObj.index);
+      currentBatchKeys.push(keyObj);
+    }
+
+    const abortController = new AbortController();
+    const batchPromises = currentBatchKeys.map((keyObj) => ({
+      keyObj,
+      promise: (async () => {
+        try {
+          console.log(`[AIClient] Provider "${provider}" dispatching request with key index ${keyObj.index} (batch of ${currentBatchKeys.length})...`);
+          const text = await sendRequestToKey(
+            providerConfig,
+            model,
+            processedMessages,
+            temperature,
+            maxTokens,
+            keyObj,
+            timeoutMs,
+            abortController.signal
+          );
+          return text;
+        } catch (err) {
+          if (!axios.isCancel(err) && err?.name !== 'CanceledError' && err?.name !== 'AbortError') {
+            const status = err?.response?.status;
+            const errMsg = err?.response?.data?.error?.message || err.message;
+            console.warn(`[AIClient] Provider "${provider}" key index ${keyObj.index} failed (Status: ${status}): ${errMsg}`);
+          }
+          throw err;
+        }
+      })()
+    }));
+
+    try {
+      const { result, winnerKeyObj } = await raceBatchRequests(batchPromises, abortController);
+      console.log(`[AIClient] Provider "${provider}" key index ${winnerKeyObj.index} completed first successfully!`);
+
+      // Release all keys in the batch back to the pool
+      currentBatchKeys.forEach(k => releaseKey(k, waiters));
+      return result;
+    } catch (batchErr) {
+      // All keys in this batch failed
+      currentBatchKeys.forEach(k => releaseKey(k, waiters));
+      lastError = batchErr;
+      console.warn(`[AIClient] Provider "${provider}" batch of ${currentBatchKeys.length} keys failed. Trying next batch...`);
+    }
+  }
+
+  throw lastError || new Error(`All keys failed for AI provider "${provider}".`);
+}
+
+/**
  * Universal AI chat completion router.
  * Dispatches requests to the provider configured for the specific feature (or custom options).
  * Supports automatic concurrency-aware key rotation and failover.
+ * For Gemini, sends requests in parallel batches of 4 keys at once.
  *
  * @param {string} featureName - The name of the feature defined in config.features (e.g. 'todo')
  * @param {Array<{role: string, content: string|Array}>} messages - Chat completion messages
@@ -107,6 +253,7 @@ async function getChatCompletionForFeature(featureName, messages, overrideOption
   const model = overrideOptions.model || featureConfig.model;
   const temperature = overrideOptions.temperature ?? featureConfig.temperature ?? 0.1;
   const maxTokens = overrideOptions.maxTokens ?? featureConfig.maxTokens ?? 512;
+  const timeoutMs = overrideOptions.timeout || featureConfig.timeout || 30000;
 
   const providerConfig = config.aiProviders[provider];
   if (!providerConfig) {
@@ -118,14 +265,30 @@ async function getChatCompletionForFeature(featureName, messages, overrideOption
     throw new Error(`No API keys found for AI provider: "${provider}". Please set environment variables.`);
   }
 
+  // Pre-process any image URLs to base64
+  const processedMessages = await resolveImageUrls(messages);
+
+  // If Gemini, dispatch in batches of 4 concurrent requests (or user-specified batchSize)
+  if (provider === 'gemini') {
+    const batchSize = overrideOptions.batchSize || 4;
+    return executeBatchedCompletion({
+      provider,
+      providerConfig,
+      model,
+      processedMessages,
+      temperature,
+      maxTokens,
+      timeoutMs,
+      batchSize
+    });
+  }
+
+  // Default sequential failover for other providers (e.g. Groq)
   const { keyPool, waiters } = getKeyPool(provider, keys);
   const triedIndices = new Set();
   const maxAttempts = keyPool.length;
   let attempts = 0;
   let lastError = null;
-
-  // Pre-process any image URLs to base64
-  const processedMessages = await resolveImageUrls(messages);
 
   while (attempts < maxAttempts) {
     const keyObj = await acquireFreeKey(provider, keyPool, waiters, triedIndices);
@@ -134,28 +297,17 @@ async function getChatCompletionForFeature(featureName, messages, overrideOption
 
     try {
       console.log(`[AIClient] Provider "${provider}" using key index ${keyObj.index} (attempt ${attempts}/${maxAttempts})...`);
-      const response = await axios.post(
-        providerConfig.endpoint,
-        {
-          model,
-          messages: processedMessages,
-          temperature,
-          max_tokens: maxTokens
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${keyObj.key}`
-          },
-          timeout: overrideOptions.timeout || 30000
-        }
+      const text = await sendRequestToKey(
+        providerConfig,
+        model,
+        processedMessages,
+        temperature,
+        maxTokens,
+        keyObj,
+        timeoutMs
       );
 
       releaseKey(keyObj, waiters);
-
-      const choice = response.data?.choices?.[0]?.message;
-      let text = choice?.content?.replace(/<think>[\s\S]*?<\/think>/gi, '').trim() || '';
-
       return text;
     } catch (err) {
       releaseKey(keyObj, waiters);
@@ -165,7 +317,6 @@ async function getChatCompletionForFeature(featureName, messages, overrideOption
       const errMsg = err?.response?.data?.error?.message || err.message;
       console.warn(`[AIClient] Provider "${provider}" key index ${keyObj.index} failed (Status: ${status}): ${errMsg}`);
 
-      // If it's a 4xx error not related to rate limits or auth (e.g. invalid request structure), don't keep rotating
       if (status && status !== 429 && status !== 401 && status !== 403 && status !== 503) {
         throw err;
       }
