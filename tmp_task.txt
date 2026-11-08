@@ -1,0 +1,8 @@
+
+add a feature that when a new user joins the server and he is registered in the database in particular guild and tthat guild is not suspended then give them this role   "VTC_DRIVERS": "1563970910200008806", (fetch from roles.js)
+1. happens everytime when a user joins for that user 
+2. happens for all members at 12 AM GMT + 00 everyday 
+
+add a feature that if the user in above feature is registered in the guild then give the user the VTC role, use approved guilds table and roles.js  and add the guild tag as it is before their name 
+
+add a feature to listen to approved guilds, as soon as new row added, create a role here just above the VTC driver role, give it color and name from guild name and embed color from the table 

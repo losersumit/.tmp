@@ -25,6 +25,10 @@ module.exports = {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY,
   },
+  uvsSupabase: {
+    url: process.env.UVS_SUPABASE_URL || 'https://aijrvldtilncnclvvles.supabase.co',
+    key: process.env.UVS_SUPABASE_KEY || process.env.UVS_SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY,
+  },
 
   // Embeddings API (Nomic)
   nomic: {

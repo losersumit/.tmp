@@ -2,6 +2,11 @@ const { Events, REST, Routes } = require('discord.js');
 const config = require('../config');
 const { syncServerConfig } = require('../utils/configSync');
 const { scheduleRagHourlySummaries } = require('../features/ragChat');
+const {
+  ensureAllApprovedGuildRolesExist,
+  listenToApprovedGuilds,
+  scheduleDailyVtcSync
+} = require('../features/vtcSync');
 const { commands } = require('../commands');
 
 module.exports = {
@@ -13,6 +18,15 @@ module.exports = {
 
     // Update all roles and channels on restart
     await syncServerConfig(client);
+
+    // Verify all approved guild roles exist and create any missing ones above VTC Drivers
+    await ensureAllApprovedGuildRolesExist(client);
+
+    // Start Realtime listener for newly added approved guilds
+    listenToApprovedGuilds(client);
+
+    // Schedule daily 12:00 AM GMT member VTC sync
+    scheduleDailyVtcSync(client);
 
     // Register slash commands across guilds or globally
     try {

@@ -185,5 +185,6 @@ ${Object.entries(voiceChannelsMap).map(([k, id]) => `    ${JSON.stringify(k)}: $
 }
 
 module.exports = {
-  syncServerConfig
+  syncServerConfig,
+  toKeyName
 };

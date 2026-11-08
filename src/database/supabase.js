@@ -12,4 +12,14 @@ const supabase = createClient(config.supabase.url, config.supabase.key, {
   }
 });
 
-module.exports = { supabase };
+const uvsUrl = config.uvsSupabase?.url || config.supabase.url;
+const uvsKey = config.uvsSupabase?.key || config.supabase.key;
+
+const uvsSupabase = createClient(uvsUrl, uvsKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  }
+});
+
+module.exports = { supabase, uvsSupabase };

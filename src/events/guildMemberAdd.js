@@ -1,6 +1,7 @@
 const { Events } = require('discord.js');
 const config = require('../config');
 const { getChatCompletionForFeature } = require('../utils/aiUtils');
+const { processMemberVtcStatus } = require('../features/vtcSync');
 
 // Welcome settings for Truckers MP - eClub.
 const WELCOME_CHANNEL_ID = config.channels.TEXT.CHAT;
@@ -65,7 +66,14 @@ module.exports = {
       }
     }
 
-    // 2. Send welcome announcement
+    // 2. VTC Driver check & role/tag assignment
+    try {
+      await processMemberVtcStatus(member);
+    } catch (vtcErr) {
+      console.error(`[AutoRole] Error processing VTC status for ${member.user.tag}:`, vtcErr);
+    }
+
+    // 3. Send welcome announcement
     try {
       const channel = await member.guild.channels.fetch(WELCOME_CHANNEL_ID).catch(() => null);
 
