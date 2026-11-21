@@ -2,7 +2,7 @@
  * Auto-generated Discord Server Channels Mapping
  * Updated automatically on bot startup.
  * Guild: Truckers MP- eClub (1558597413357363263)
- * Timestamp: 2026-11-08T20:31:07.719Z
+ * Timestamp: 2026-11-18T19:35:22.277Z
  */
 
 module.exports = {
@@ -66,6 +66,7 @@ module.exports = {
     "RLE_T": "1561699056005152828",
     "RADIO": "1562516330094272672",
     "RULES": "1562815886996283442",
+    "MULTIPLAYER_INVITATIONS": "1569617034243866685",
   },
 
   // Voice & Stage Channels

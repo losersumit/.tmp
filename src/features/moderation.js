@@ -39,6 +39,9 @@ Respond in JSON format ONLY (no markdown, no code fences):
   "confidence": 0.0
 }
 
+
+1. If the discord.gg/ link has event in front of it then DO NOT flag it. (e.g. https://discord.gg/WxuxxAhRJ?event=1572631410395717712)
+2. DO NOT flag youtube or kkinstagram links. 
 Only flag content that falls in the above categories. When in doubt, do not flag.
 Strict mode is currently: ${strictMode ? 'ENABLED' : 'DISABLED'}.
 `.trim();
@@ -62,6 +65,8 @@ Respond in JSON format ONLY (no markdown, no code fences):
   "confidence": 0.0
 }
 
+DO NOT flag sexual text in the images, only flag if there is visual. 
+If the discord.gg/ link has event in front of it then DO NOT flag it. (e.g. https://discord.gg/WxuxxAhRJ?event=1572631410395717712)
 Only flag content that falls in the above categories.
 `.trim();
 }
