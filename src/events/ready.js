@@ -2,6 +2,7 @@ const { Events, REST, Routes } = require('discord.js');
 const config = require('../config');
 const { syncServerConfig } = require('../utils/configSync');
 const { scheduleRagHourlySummaries } = require('../features/ragChat');
+const { startUvsMonitor } = require('../features/uvsMonitor');
 const {
   ensureAllApprovedGuildRolesExist,
   listenToApprovedGuilds,
@@ -52,5 +53,8 @@ module.exports = {
 
     // Schedule hourly RAG summaries for chat context
     scheduleRagHourlySummaries(client);
+
+    // Start 5-minute UVS heartbeat monitor
+    startUvsMonitor(client);
   }
 };
